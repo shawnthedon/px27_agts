@@ -1,0 +1,15 @@
+{
+  "name": "@px27m/gateway",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "px27m Platform Gateway - Universal Phone Control Registry, Router and Policy Engine",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@px27m/phone-control-protocol": "file:../../packages/phone-control-protocol"
+  },
+  "author": "px27_agts",
+  "license": "Apache-2.0"
+}

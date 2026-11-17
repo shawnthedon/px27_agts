@@ -1,0 +1,20 @@
+{
+  "name": "@px27m/phone-control-protocol",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Universal Phone Control Protocol, schemas, and contracts for px27m agents",
+  "main": "src/index.js",
+  "types": "src/index.d.ts",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": [
+    "px27m",
+    "phone-control",
+    "protocol",
+    "agent-tools",
+    "schema"
+  ],
+  "author": "px27_agts",
+  "license": "Apache-2.0"
+}
