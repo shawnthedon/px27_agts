@@ -11,6 +11,16 @@ struct Px27App: App {
                         Label("Capabilities", systemImage: "sparkles")
                     }
 
+                OsintWebDashboardView()
+                    .tabItem {
+                        Label("Web OSINT", systemImage: "network")
+                    }
+
+                OsintPhoneDashboardView()
+                    .tabItem {
+                        Label("Phone OSINT", systemImage: "phone.badge.waveform")
+                    }
+
                 PairingSecurityView()
                     .tabItem {
                         Label("Pairing", systemImage: "qrcode")

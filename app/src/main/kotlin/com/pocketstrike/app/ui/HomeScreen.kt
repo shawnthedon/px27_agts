@@ -33,8 +33,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
@@ -270,6 +272,14 @@ fun HomeScreen(
                     DrawerNavLink(Icons.Default.Security, "Pairing & Security") {
                         scope.launch { drawerState.close() }
                         onNavigate("pairing_security")
+                    }
+                    DrawerNavLink(Icons.Default.Language, "Web OSINT Intelligence") {
+                        scope.launch { drawerState.close() }
+                        onNavigate("osint_web")
+                    }
+                    DrawerNavLink(Icons.Default.Phone, "Phone OSINT & Tracking") {
+                        scope.launch { drawerState.close() }
+                        onNavigate("osint_phone")
                     }
                     DrawerNavLink(Icons.Default.Image, "AI Image Gallery") {
                         scope.launch { drawerState.close() }

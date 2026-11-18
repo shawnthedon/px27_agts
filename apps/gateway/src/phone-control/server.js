@@ -5,7 +5,18 @@
  */
 
 import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { URL } from "node:url";
+import {
+  TOP_10_WEB_OSINT_PROJECTS,
+  TOP_10_PHONE_OSINT_PROJECTS,
+  analyzePhoneNumber
+} from "./osint-modules.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PUBLIC_DIR = path.resolve(__dirname, "../../public");
 
 export class HybridGatewayServer {
   constructor({ deviceRegistry, capabilityRegistry, commandRouter, pairingManager, auditEngine, policyEngine }) {
@@ -66,6 +77,33 @@ export class HybridGatewayServer {
     }
 
     try {
+      if (pathname === "/" || pathname === "/dashboard") {
+        const htmlPath = path.join(PUBLIC_DIR, "index.html");
+        if (fs.existsSync(htmlPath)) {
+          const html = fs.readFileSync(htmlPath, "utf-8");
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(html);
+          return;
+        }
+      }
+
+      if (pathname === "/api/osint/web" && method === "GET") {
+        this.sendJson(res, 200, { count: TOP_10_WEB_OSINT_PROJECTS.length, projects: TOP_10_WEB_OSINT_PROJECTS });
+        return;
+      }
+
+      if (pathname === "/api/osint/phone" && method === "GET") {
+        this.sendJson(res, 200, { count: TOP_10_PHONE_OSINT_PROJECTS.length, projects: TOP_10_PHONE_OSINT_PROJECTS });
+        return;
+      }
+
+      if (pathname === "/api/osint/phone/analyze" && method === "POST") {
+        const body = await this.readJsonBody(req);
+        const analysis = analyzePhoneNumber(body.phone_number || body.number || "");
+        this.sendJson(res, 200, analysis);
+        return;
+      }
+
       if (pathname === "/health" && method === "GET") {
         this.sendJson(res, 200, { status: "healthy", service: "px27m-phone-control-gateway", v: "1.0" });
         return;

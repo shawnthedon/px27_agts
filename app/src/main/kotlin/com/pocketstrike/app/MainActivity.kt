@@ -19,6 +19,8 @@ import com.pocketstrike.app.ui.GalleryScreen
 import com.pocketstrike.app.ui.HermesMemoryScreen
 import com.pocketstrike.app.ui.HomeScreen
 import com.pocketstrike.app.ui.McpScreen
+import com.pocketstrike.app.ui.OsintPhoneDashboardScreen
+import com.pocketstrike.app.ui.OsintWebDashboardScreen
 import com.pocketstrike.app.ui.PairingSecurityScreen
 import com.pocketstrike.app.ui.ProvidersScreen
 import com.pocketstrike.app.ui.ToolsScreen
@@ -98,6 +100,16 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("pairing_security") {
                             PairingSecurityScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable("osint_web") {
+                            OsintWebDashboardScreen(
+                                onBack = { navController.popBackStack() }
+                            )
+                        }
+                        composable("osint_phone") {
+                            OsintPhoneDashboardScreen(
                                 onBack = { navController.popBackStack() }
                             )
                         }
