@@ -26,6 +26,12 @@
     <string>px27m Phone Control requires microphone access for audio recording and speech transcription by authorized agents.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>px27m Phone Control requires location access to provide device telemetry and navigation services to authorized agents.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>px27m Phone Control requires local network access for LAN communication with px27m agents on port 27028.</string>
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_px27m-control._tcp</string>
+    </array>
     <key>UIBackgroundModes</key>
     <array>
         <string>fetch</string>

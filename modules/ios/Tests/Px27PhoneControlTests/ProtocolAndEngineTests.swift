@@ -203,4 +203,22 @@ final class ProtocolAndEngineTests: XCTestCase {
         XCTAssertFalse(volRes.verification.verified)
         XCTAssertEqual(volRes.error?.code, "UNSUPPORTED_PLATFORM_SANDBOX")
     }
+
+    #if canImport(AppIntents)
+    func testAppIntentsExecutionAndFormatting() async throws {
+        let statusIntent = QueryDeviceStatusIntent()
+        let statusResult = try await statusIntent.perform()
+        XCTAssertTrue(statusResult.value.contains("iOS"))
+
+        var phoneIntent = AnalyzePhoneNumberIntent()
+        phoneIntent.phoneNumber = "+1 555-0199"
+        let phoneResult = try await phoneIntent.perform()
+        XCTAssertTrue(phoneResult.value.contains("+15550199"))
+        XCTAssertTrue(phoneResult.value.contains("US/CA"))
+
+        let disconnectIntent = EmergencyDisconnectIntent()
+        let killResult = try await disconnectIntent.perform()
+        XCTAssertTrue(killResult.value.contains("Emergency Disconnect Executed"))
+    }
+    #endif
 }

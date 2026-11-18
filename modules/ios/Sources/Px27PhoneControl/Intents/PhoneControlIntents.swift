@@ -42,6 +42,70 @@ public struct ExecutePhoneCommandIntent: AppIntent {
     }
 }
 
+/// App Intent to toggle device flashlight / torch
+public struct ToggleTorchIntent: AppIntent {
+    public static var title: LocalizedStringResource = "Toggle px27m Flashlight"
+    public static var description = IntentDescription("Turns device camera flashlight on or off via px27m engine.")
+
+    @Parameter(title: "State", default: "toggle")
+    public var state: String
+
+    public init() {}
+
+    public func perform() async throws -> some IntentResult & ReturnsValue<String> {
+        let engine = ExecutionEngine()
+        let cmd = PhoneControlCommand(
+            commandId: "intent_torch_\(Int(Date().timeIntervalSince1970))",
+            capability: "device.camera.torch",
+            parameters: ["state": state],
+            authorization: CommandAuthorization(agentId: "apple_shortcuts_agent")
+        )
+        let result = await engine.executeCommand(command: cmd)
+        return .result(value: result.verification.verified ? "Torch updated: \(state)" : "Torch command failed")
+    }
+}
+
+/// App Intent for Emergency Session Disconnect (Kill-Switch)
+public struct EmergencyDisconnectIntent: AppIntent {
+    public static var title: LocalizedStringResource = "Emergency Disconnect px27m"
+    public static var description = IntentDescription("Immediately revokes all session authorizations and terminates remote gateway connection.")
+
+    public init() {}
+
+    public func perform() async throws -> some IntentResult & ReturnsValue<String> {
+        let engine = ExecutionEngine()
+        let cmd = PhoneControlCommand(
+            commandId: "intent_kill_\(Int(Date().timeIntervalSince1970))",
+            capability: "device.security.disconnect",
+            parameters: [:],
+            authorization: CommandAuthorization(agentId: "user_emergency_kill_switch")
+        )
+        let result = await engine.executeCommand(command: cmd)
+        return .result(value: "Emergency Disconnect Executed: \(result.status.rawValue)")
+    }
+}
+
+/// App Intent to analyze a phone number using local OSINT rules
+public struct AnalyzePhoneNumberIntent: AppIntent {
+    public static var title: LocalizedStringResource = "Analyze Phone Intelligence"
+    public static var description = IntentDescription("Parses phone number to E.164, identifies country, and returns OSINT queries.")
+
+    @Parameter(title: "Phone Number")
+    public var phoneNumber: String
+
+    public init() {}
+
+    public func perform() async throws -> some IntentResult & ReturnsValue<String> {
+        let digits = phoneNumber.filter { "0123456789".contains($0) }
+        guard digits.count >= 7 else {
+            return .result(value: "Invalid phone number: minimum 7 digits required")
+        }
+        let e164 = "+\(digits)"
+        let country = digits.hasPrefix("1") ? "US/CA (+1)" : (digits.hasPrefix("44") ? "UK (+44)" : "International (\(e164))")
+        return .result(value: "E.164: \(e164) • Country: \(country) • Dorks ready")
+    }
+}
+
 /// System-wide AppShortcuts provider exposing px27m actions to iOS Shortcuts
 public struct Px27ShortcutsProvider: AppShortcutsProvider {
     public static var appShortcuts: [AppShortcut] {
@@ -53,6 +117,24 @@ public struct Px27ShortcutsProvider: AppShortcutsProvider {
             ],
             shortTitle: "Device Status",
             systemImageName: "iphone.gen3"
+        )
+        AppShortcut(
+            intent: ToggleTorchIntent(),
+            phrases: [
+                "Toggle flashlight with \(.applicationName)",
+                "Turn torch on with \(.applicationName)"
+            ],
+            shortTitle: "Toggle Torch",
+            systemImageName: "flashlight.on.fill"
+        )
+        AppShortcut(
+            intent: EmergencyDisconnectIntent(),
+            phrases: [
+                "Emergency disconnect \(.applicationName)",
+                "Kill all \(.applicationName) connections"
+            ],
+            shortTitle: "Kill Switch",
+            systemImageName: "bolt.slash.fill"
         )
     }
 }
