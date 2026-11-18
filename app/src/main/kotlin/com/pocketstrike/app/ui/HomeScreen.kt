@@ -441,6 +441,12 @@ fun ChatModeSelector(
             .padding(2.dp)
     ) {
         ModeChip(
+            label = "COPILOT",
+            isSelected = currentMode == ChatMode.COPILOT,
+            accentColor = Color(0xFF8B5CF6),
+            onClick = { onModeSelected(ChatMode.COPILOT) }
+        )
+        ModeChip(
             label = "AGENT",
             isSelected = currentMode == ChatMode.AGENT,
             accentColor = EmeraldAccent,
@@ -792,7 +798,12 @@ fun ChatInputBar(
                 onValueChange = onTextChanged,
                 placeholder = {
                     Text(
-                        text = if (currentMode == ChatMode.AGENT) "Ask agent to act or execute tools..." else "Message PocketStrike...",
+                        text = when (currentMode) {
+                            ChatMode.COPILOT -> "Ask Copilot to automate device or run OSINT..."
+                            ChatMode.AGENT -> "Ask agent to act or execute tools..."
+                            ChatMode.LOCAL -> "Local device command..."
+                            ChatMode.CHAT -> "Message PocketStrike..."
+                        },
                         color = TextSecondaryDark,
                         fontSize = 14.sp
                     )

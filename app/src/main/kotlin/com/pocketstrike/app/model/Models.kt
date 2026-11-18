@@ -5,7 +5,7 @@ enum class MessageRole {
 }
 
 enum class ChatMode {
-    CHAT, AGENT, LOCAL
+    CHAT, AGENT, COPILOT, LOCAL
 }
 
 data class ToolCallInfo(

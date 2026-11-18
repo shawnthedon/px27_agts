@@ -6,6 +6,11 @@ struct Px27App: App {
     var body: some Scene {
         WindowGroup {
             TabView {
+                CopilotAgentView()
+                    .tabItem {
+                        Label("Copilot Agent", systemImage: "cpu")
+                    }
+
                 CapabilityExplorerView()
                     .tabItem {
                         Label("Capabilities", systemImage: "sparkles")

@@ -30,11 +30,16 @@ class ExecutionEngine(private val context: Context) {
     fun planSteps(instruction: String): List<String> {
         val lower = instruction.lowercase()
         val steps = mutableListOf<String>()
-        if (lower.contains("battery") || lower.contains("power")) steps.add("device.info.battery")
-        if (lower.contains("wifi") || lower.contains("network")) steps.add("device.connectivity.status")
-        if (lower.contains("notification")) steps.add("device.notifications.list")
-        if (lower.contains("storage") || lower.contains("space")) steps.add("device.info.storage")
+        if (lower.contains("battery") || lower.contains("power") || lower.contains("charge")) steps.add("device.info.battery")
+        if (lower.contains("wifi") || lower.contains("network") || lower.contains("connection")) steps.add("device.connectivity.status")
+        if (lower.contains("notification") || lower.contains("alert")) steps.add("device.notifications.list")
+        if (lower.contains("storage") || lower.contains("space") || lower.contains("disk")) steps.add("device.info.storage")
         if (lower.contains("inspect") || lower.contains("screen")) steps.add("device.screen.inspect")
+        if (lower.contains("torch") || lower.contains("flash")) steps.add("device.hardware.torch")
+        if (lower.contains("vibrate") || lower.contains("haptic")) steps.add("device.hardware.vibrate")
+        if (lower.contains("location") || lower.contains("gps")) steps.add("device.sensors.location")
+        if (lower.contains("brightness")) steps.add("device.settings.brightness")
+        if (lower.contains("clipboard") || lower.contains("paste")) steps.add("device.clipboard.read")
         return steps
     }
 

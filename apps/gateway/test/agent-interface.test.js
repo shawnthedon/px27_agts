@@ -212,6 +212,18 @@ test("HybridGatewayServer handles health, pairing, manifest registration, and co
       os_version: "15"
     });
 
+    router.registerTransport("android_test_123", async (cmd) => {
+      return {
+        command_id: cmd.command_id,
+        status: CommandStatus.COMPLETED,
+        platform: "android",
+        capability: cmd.capability,
+        result: { battery_level: 92, charging: true },
+        verification: { verified: true, verification_method: "battery_manager_receiver" },
+        duration_ms: 22
+      };
+    });
+
     const manifestRes = await fetch(`http://127.0.0.1:${port}/api/manifest`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -238,6 +250,43 @@ test("HybridGatewayServer handles health, pairing, manifest registration, and co
     assert.equal(manifestRes.status, 200);
     const manifestData = await manifestRes.json();
     assert.equal(manifestData.registered_capabilities, 1);
+
+    // 5. Query Agent Tools (/api/agent/tools)
+    const toolsRes = await fetch(`http://127.0.0.1:${port}/api/agent/tools`);
+    assert.equal(toolsRes.status, 200);
+    const toolsData = await toolsRes.json();
+    assert.equal(toolsData.total_capabilities, 1);
+    assert.ok(toolsData.tools.openai.length > 0);
+    assert.ok(toolsData.tools.anthropic.length > 0);
+    assert.ok(toolsData.tools.mcp.length > 0);
+
+    // 6. Test Copilot Goal Execution (/api/agent/copilot)
+    const copilotRes = await fetch(`http://127.0.0.1:${port}/api/agent/copilot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Inspect battery charge and analyze target phone +1 555-0199"
+      })
+    });
+    assert.equal(copilotRes.status, 200);
+    const copilotData = await copilotRes.json();
+    assert.ok(copilotData.steps_executed >= 1);
+    assert.ok(copilotData.synthesis.includes("Copilot"));
+
+    // 7. Test Direct Agent Capability Execution (/api/agent/execute)
+    const execRes = await fetch(`http://127.0.0.1:${port}/api/agent/execute`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        device_id: "android_test_123",
+        capability_id: "device.info.battery",
+        parameters: {}
+      })
+    });
+    assert.equal(execRes.status, 200);
+    const execData = await execRes.json();
+    assert.equal(execData.success, true);
+    assert.equal(execData.verification.verified, true);
   } finally {
     await server.stop();
   }

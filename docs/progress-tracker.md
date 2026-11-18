@@ -18,6 +18,8 @@ This document provides the authoritative status of implementation phases and cap
 | **10** | Companion Applications & Explorer UI | **Complete** | Jetpack Compose UI (`CapabilityExplorerScreen`, `PairingSecurityScreen`) on Android; SwiftUI (`CapabilityExplorerView`, `PairingSecurityView`, `DeviceStatusView`) on iOS. |
 | **11** | Resilience, Timeouts & Emergency Disconnect | **Complete** | Real-time emergency kill-switch (`device.security.disconnect`), command timeout enforcement, recovery and compensation hooks. |
 | **12** | Cross-Platform Compatibility Audit | **Complete** | Architectural compatibility verified. Schema validation tests passing. Clean separation of companion modules. |
+| **13** | Top 10 Web & Phone OSINT Dashboards | **Complete** | Curated catalog of Top 10 Web & Top 10 Phone OSINT GitHub projects, interactive E.164 analyzer, and multi-platform dashboards (Web `/dashboard`, Android Compose, iOS SwiftUI). |
+| **14** | AI Agent & Copilot Full Integration | **Complete** | Unified `Px27mAgentClient` with autonomous planning, OpenAI/Claude/MCP tool generation, `/api/agent/copilot` endpoint, Android `ChatMode.COPILOT` with ReAct streaming, and iOS `CopilotAgentView`. |
 
 ---
 

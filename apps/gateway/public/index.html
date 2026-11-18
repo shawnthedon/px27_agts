@@ -238,6 +238,7 @@
     </div>
     <div class="nav-tabs">
       <button class="nav-btn active" onclick="switchTab('phone-control')">📱 Phone Control</button>
+      <button class="nav-btn" onclick="switchTab('agent-copilot')">🤖 Copilot AI Agent</button>
       <button class="nav-btn" onclick="switchTab('osint-web')">🌐 Top 10 Web OSINT</button>
       <button class="nav-btn" onclick="switchTab('osint-phone')">📞 Top 10 Phone OSINT</button>
     </div>
@@ -279,7 +280,47 @@
       </div>
     </div>
 
-    <!-- TAB 2: TOP 10 OSINT WEB -->
+    <!-- TAB 2: COPILOT AI AGENT -->
+    <div id="tab-agent-copilot" class="tab-content">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Copilot AI Agent & LLM Capability Operations</h2>
+          <p class="section-desc">Operate discovered phone capabilities through one unified, intelligent Copilot interface with real-time verification and LLM tool schemas.</p>
+        </div>
+      </div>
+
+      <div class="analyzer-box">
+        <h3 style="font-size: 16px;">🤖 Copilot Interactive Execution Console</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Command the AI agent to inspect device state, query sensors, run phone intelligence, or execute multi-step workflows.</p>
+        <div class="input-row">
+          <input type="text" id="copilot-input" class="search-input" placeholder="e.g. Inspect battery charge and analyze phone +1 555-0199..." value="Inspect battery charge and check device system specs">
+          <button class="btn btn-primary" onclick="sendCopilotPrompt()">Execute Copilot</button>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+          <button class="btn btn-outline" style="font-size: 11px; padding: 4px 10px;" onclick="setCopilotPrompt('Inspect battery charge and power status')">🔋 Battery Telemetry</button>
+          <button class="btn btn-outline" style="font-size: 11px; padding: 4px 10px;" onclick="setCopilotPrompt('Analyze phone number +1 555-0199 and generate OSINT dorks')">📞 Phone OSINT</button>
+          <button class="btn btn-outline" style="font-size: 11px; padding: 4px 10px;" onclick="setCopilotPrompt('Check network connectivity and latency')">🌐 Network State</button>
+          <button class="btn btn-outline" style="font-size: 11px; padding: 4px 10px;" onclick="setCopilotPrompt('Inspect active notifications on device')">🔔 Notifications</button>
+        </div>
+        <div id="copilot-result-panel" class="result-box" style="display: none;"></div>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <div class="card-top">
+          <span class="card-title">Discovered Agent Tool Schemas (OpenAI, Claude, MCP)</span>
+          <span class="stars-badge" style="color: var(--accent);">Synchronized</span>
+        </div>
+        <p class="card-desc">Automatically compiled tool specifications generated from active companion manifests for direct injection into GPT-4o, Claude 3.5 Sonnet, or MCP clients.</p>
+        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+          <button id="schema-btn-openai" class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;" onclick="switchSchemaView('openai')">OpenAI Functions</button>
+          <button id="schema-btn-claude" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;" onclick="switchSchemaView('anthropic')">Anthropic Tools</button>
+          <button id="schema-btn-mcp" class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;" onclick="switchSchemaView('mcp')">MCP Tools</button>
+        </div>
+        <pre id="agent-tools-json" style="background: #06070a; border: 1px solid var(--card-border); border-radius: 6px; padding: 12px; font-size: 12px; color: #a0aec0; overflow-x: auto; max-height: 280px;">Loading tool schemas...</pre>
+      </div>
+    </div>
+
+    <!-- TAB 3: TOP 10 OSINT WEB -->
     <div id="tab-osint-web" class="tab-content">
       <div class="section-header">
         <div>
@@ -457,10 +498,78 @@
       alert(`Pairing Code: ${data.pairing_code}\nEnter this code in companion app within 5 minutes.`);
     }
 
+    // Copilot & AI Agent Operations
+    let cachedTools = { openai: [], anthropic: [], mcp: [] };
+
+    function setCopilotPrompt(text) {
+      document.getElementById('copilot-input').value = text;
+      sendCopilotPrompt();
+    }
+
+    async function sendCopilotPrompt() {
+      const input = document.getElementById('copilot-input');
+      const prompt = input.value.trim();
+      if (!prompt) return;
+
+      const panel = document.getElementById('copilot-result-panel');
+      panel.style.display = 'block';
+      panel.innerHTML = `<div style="color: var(--accent);">⚡ Copilot analyzing goal and orchestrating capabilities...</div>`;
+
+      try {
+        const res = await fetch('/api/agent/copilot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await res.json();
+
+        panel.innerHTML = `
+          <div style="margin-bottom: 12px;">
+            <div style="font-size: 11px; color: var(--text-muted);">COPILOT GOAL SYNTHESIS</div>
+            <div style="font-size: 14px; color: #fff; margin-top: 4px; white-space: pre-wrap; line-height: 1.5;">${data.synthesis}</div>
+          </div>
+          <div style="font-size: 12px; font-weight: bold; margin-bottom: 8px; color: var(--accent);">Executed Operations (${data.steps_executed}):</div>
+          ${data.steps.map(s => `
+            <div class="dork-item">
+              <div>
+                <b>${s.tool}</b> ${s.target ? `[${s.target}]` : ''}<br>
+                <span style="font-size: 11px; color: var(--text-muted);">${JSON.stringify(s.result.verification || s.result)}</span>
+              </div>
+              <span class="stars-badge" style="color: var(--accent);">Verified</span>
+            </div>
+          `).join('')}
+        `;
+      } catch (err) {
+        panel.innerHTML = `<div style="color: #ef4444;">❌ Copilot execution error: ${err.message}</div>`;
+      }
+    }
+
+    async function loadAgentTools() {
+      try {
+        const res = await fetch('/api/agent/tools');
+        const data = await res.json();
+        cachedTools = data.tools || { openai: [], anthropic: [], mcp: [] };
+        switchSchemaView('openai');
+      } catch (err) {
+        console.error('Failed to load agent tools', err);
+      }
+    }
+
+    function switchSchemaView(type) {
+      document.getElementById('schema-btn-openai').className = type === 'openai' ? 'btn btn-primary' : 'btn btn-outline';
+      document.getElementById('schema-btn-claude').className = type === 'anthropic' ? 'btn btn-primary' : 'btn btn-outline';
+      document.getElementById('schema-btn-mcp').className = type === 'mcp' ? 'btn btn-primary' : 'btn btn-outline';
+
+      const jsonPre = document.getElementById('agent-tools-json');
+      const tools = cachedTools[type] || [];
+      jsonPre.textContent = JSON.stringify(tools, null, 2);
+    }
+
     // Auto-init on load
     loadWebOsint();
     loadPhoneOsint();
     loadDevices();
+    loadAgentTools();
   </script>
 </body>
 </html>

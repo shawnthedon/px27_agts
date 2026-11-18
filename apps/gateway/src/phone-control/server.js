@@ -14,18 +14,29 @@ import {
   TOP_10_PHONE_OSINT_PROJECTS,
   analyzePhoneNumber
 } from "./osint-modules.js";
+import { Px27mAgentClient } from "./agent-interface.js";
+import { AutonomyProfile } from "@px27m/phone-control-protocol";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC_DIR = path.resolve(__dirname, "../../public");
 
 export class HybridGatewayServer {
-  constructor({ deviceRegistry, capabilityRegistry, commandRouter, pairingManager, auditEngine, policyEngine }) {
+  constructor({ deviceRegistry, capabilityRegistry, commandRouter, pairingManager, auditEngine, policyEngine, agentClient }) {
     this.deviceRegistry = deviceRegistry;
     this.capabilityRegistry = capabilityRegistry || deviceRegistry;
     this.commandRouter = commandRouter;
     this.pairingManager = pairingManager;
     this.auditEngine = auditEngine;
     this.policyEngine = policyEngine;
+    this.agentClient = agentClient || new Px27mAgentClient({
+      agentId: "agent_copilot_universal",
+      agentName: "px27m Copilot Agent",
+      autonomyProfile: AutonomyProfile.POWER_USER,
+      deviceRegistry,
+      commandRouter,
+      policyEngine,
+      auditEngine
+    });
     this.server = null;
     this.activeSockets = new Map(); // deviceId -> socket/handler
   }
@@ -148,6 +159,159 @@ export class HybridGatewayServer {
 
         const result = await this.commandRouter.dispatch(command, deviceId);
         this.sendJson(res, 200, result);
+        return;
+      }
+
+      if (pathname === "/api/agent/tools" && method === "GET") {
+        const deviceId = parsedUrl.searchParams.get("device_id") || null;
+        const [openai, anthropic, mcp, capabilities] = await Promise.all([
+          this.agentClient.getOpenAITools(deviceId),
+          this.agentClient.getAnthropicTools(deviceId),
+          this.agentClient.getMcpTools(deviceId),
+          this.agentClient.discoverAvailableCapabilities(deviceId)
+        ]);
+        this.sendJson(res, 200, {
+          total_capabilities: capabilities.length,
+          capabilities,
+          tools: { openai, anthropic, mcp }
+        });
+        return;
+      }
+
+      if (pathname === "/api/agent/execute" && method === "POST") {
+        const body = await this.readJsonBody(req);
+        if (body.tool_name) {
+          const result = await this.agentClient.executeToolCall(body.tool_name, body.parameters || {}, body.approval_token || null);
+          this.sendJson(res, 200, result);
+          return;
+        }
+        if (!body.device_id || !body.capability_id) {
+          this.sendJson(res, 400, { error: "device_id and capability_id (or tool_name) are required" });
+          return;
+        }
+        const result = await this.agentClient.executeCapability({
+          deviceId: body.device_id,
+          capabilityId: body.capability_id,
+          parameters: body.parameters || {},
+          approvalToken: body.approval_token || null,
+          timeoutMs: body.timeout_ms || 15000,
+          verifyResult: body.verify_result ?? true
+        });
+        this.sendJson(res, 200, result);
+        return;
+      }
+
+      if (pathname === "/api/agent/workflow" && method === "POST") {
+        const body = await this.readJsonBody(req);
+        if (!body.device_id || !Array.isArray(body.steps)) {
+          this.sendJson(res, 400, { error: "device_id and steps array are required" });
+          return;
+        }
+        const result = await this.agentClient.executeWorkflow(body.steps, body.device_id, {
+          approvalToken: body.approval_token,
+          stopOnError: body.stop_on_error
+        });
+        this.sendJson(res, 200, result);
+        return;
+      }
+
+      if (pathname === "/api/agent/copilot" && method === "POST") {
+        const body = await this.readJsonBody(req);
+        const prompt = (body.prompt || "").trim();
+        if (!prompt) {
+          this.sendJson(res, 400, { error: "prompt is required" });
+          return;
+        }
+
+        const lower = prompt.toLowerCase();
+        let targetDeviceId = body.device_id;
+        if (!targetDeviceId) {
+          const connected = this.deviceRegistry.listConnectedDevices().filter(d => d.status === "connected");
+          targetDeviceId = connected.length > 0 ? connected[0].device_id : null;
+        }
+
+        const executedSteps = [];
+        let osintPhoneAnalysis = null;
+
+        // Check if phone number / phone tracking query
+        const phoneRegex = /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/;
+        const phoneMatch = prompt.match(phoneRegex);
+        if (phoneMatch && phoneMatch[0].replace(/\D/g, "").length >= 7) {
+          osintPhoneAnalysis = analyzePhoneNumber(phoneMatch[0]);
+          executedSteps.push({
+            tool: "osint.phone.analyze",
+            target: phoneMatch[0],
+            result: osintPhoneAnalysis
+          });
+        }
+
+        // Plan device capability steps
+        if (targetDeviceId) {
+          const availableCaps = await this.agentClient.discoverAvailableCapabilities(targetDeviceId);
+          const capsToRun = [];
+
+          if ((lower.includes("battery") || lower.includes("charge") || lower.includes("power")) &&
+              availableCaps.some(c => c.capability_id === "device.info.battery")) {
+            capsToRun.push("device.info.battery");
+          }
+          if ((lower.includes("system") || lower.includes("spec") || lower.includes("hardware")) &&
+              availableCaps.some(c => c.capability_id === "device.info.system")) {
+            capsToRun.push("device.info.system");
+          }
+          if ((lower.includes("storage") || lower.includes("space") || lower.includes("disk")) &&
+              availableCaps.some(c => c.capability_id === "device.info.storage")) {
+            capsToRun.push("device.info.storage");
+          }
+          if ((lower.includes("network") || lower.includes("wifi") || lower.includes("connectivity")) &&
+              availableCaps.some(c => c.capability_id === "device.connectivity.status")) {
+            capsToRun.push("device.connectivity.status");
+          }
+          if ((lower.includes("notification") || lower.includes("alert")) &&
+              availableCaps.some(c => c.capability_id === "device.notifications.list")) {
+            capsToRun.push("device.notifications.list");
+          }
+          if ((lower.includes("screen") || lower.includes("inspect")) &&
+              availableCaps.some(c => c.capability_id === "device.screen.inspect")) {
+            capsToRun.push("device.screen.inspect");
+          }
+
+          for (const capId of capsToRun) {
+            const resExec = await this.agentClient.executeCapability({
+              deviceId: targetDeviceId,
+              capabilityId: capId,
+              parameters: {},
+              approvalToken: body.approval_token || null
+            });
+            executedSteps.push({
+              tool: capId,
+              target: targetDeviceId,
+              result: resExec
+            });
+          }
+        }
+
+        // Formulate synthesis
+        let synthesis = "";
+        if (executedSteps.length === 0) {
+          synthesis = `Copilot processed your prompt: "${prompt}". No active connected device capabilities matched this request, or device is currently offline.`;
+        } else {
+          const summaryParts = executedSteps.map(s => {
+            if (s.tool === "osint.phone.analyze") {
+              return `• **Phone Intelligence**: Normalized E.164: \`${s.result.e164_normalized}\`, Country: ${s.result.country} ${s.result.flag}. Generated ${s.result.osint_dorks.length} OSINT search dorks.`;
+            }
+            const status = s.result.success ? "Verified ✅" : "Failed ❌";
+            return `• **${s.tool}** [${s.target}]: ${status} (${s.result.verification?.verification_method || "direct"}).`;
+          });
+          synthesis = `Copilot successfully executed ${executedSteps.length} action(s):\n\n${summaryParts.join("\n")}\n\nAll actions have been logged to the immutable audit trail.`;
+        }
+
+        this.sendJson(res, 200, {
+          prompt,
+          target_device_id: targetDeviceId,
+          steps_executed: executedSteps.length,
+          steps: executedSteps,
+          synthesis
+        });
         return;
       }
 
