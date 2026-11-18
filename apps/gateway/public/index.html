@@ -328,12 +328,15 @@
           <p class="section-desc">Consolidated, modular intelligence tools for domain reconnaissance, social footprints, and attack surface enumeration.</p>
         </div>
       </div>
+      <div style="margin-bottom: 16px;">
+        <input type="text" id="web-osint-search" class="search-input" placeholder="🔍 Filter Web OSINT projects by name, category, or language..." oninput="filterWebOsint(this.value)">
+      </div>
       <div id="web-osint-grid" class="grid">
         <!-- Injected via JavaScript -->
       </div>
     </div>
 
-    <!-- TAB 3: TOP 10 OSINT PHONE -->
+    <!-- TAB 4: TOP 10 OSINT PHONE -->
     <div id="tab-osint-phone" class="tab-content">
       <div class="section-header">
         <div>
@@ -347,12 +350,24 @@
         <h3 style="font-size: 16px;">🔍 Interactive Phone Number Intelligence Analyzer</h3>
         <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px;">Normalize international numbers, determine country prefixes, identify carrier profiles, and generate OSINT search dorks.</p>
         <div class="input-row">
-          <input type="text" id="phone-input" class="input-field" placeholder="Enter international number (e.g. +1 555-019-2834 or +44 7911 123456)">
+          <input type="text" id="phone-input" class="search-input" placeholder="Enter international number (e.g. +1 555-019-2834 or +44 7911 123456)">
           <button class="btn btn-primary" onclick="runPhoneAnalysis()" style="flex: 0 0 160px;">Analyze Number</button>
         </div>
-        <div id="phone-result-panel" class="result-panel">
+        <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+          <span style="font-size: 11px; color: var(--text-muted); align-self: center;">Samples:</span>
+          <button class="btn btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick="setPhoneSample('+1 555-0199')">🇺🇸 +1 555-0199</button>
+          <button class="btn btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick="setPhoneSample('+44 7911 123456')">🇬🇧 +44 7911 123456</button>
+          <button class="btn btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick="setPhoneSample('+49 30 123456')">🇩🇪 +49 30 123456</button>
+          <button class="btn btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick="setPhoneSample('+234 802 123 4567')">🇳🇬 +234 802 123</button>
+          <button class="btn btn-outline" style="font-size: 11px; padding: 3px 8px;" onclick="setPhoneSample('+91 98765 43210')">🇮🇳 +91 98765</button>
+        </div>
+        <div id="phone-result-panel" class="result-box" style="display: none;">
           <!-- Live Result Injected Here -->
         </div>
+      </div>
+
+      <div style="margin-bottom: 16px;">
+        <input type="text" id="phone-osint-search" class="search-input" placeholder="🔍 Filter Phone OSINT projects by name, category, or language..." oninput="filterPhoneOsint(this.value)">
       </div>
 
       <div id="phone-osint-grid" class="grid">
@@ -370,34 +385,112 @@
       event.target.classList.add('active');
     }
 
+    let allWebProjects = [];
+    let allPhoneProjects = [];
+
+    function renderWebGrid(projects) {
+      const grid = document.getElementById('web-osint-grid');
+      if (projects.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--text-muted); text-align: center; padding: 24px;">No web OSINT projects matched your filter.</div>`;
+        return;
+      }
+      grid.innerHTML = projects.map(p => `
+        <div class="card">
+          <div>
+            <div class="card-top">
+              <span class="card-title">${p.name}</span>
+              <span class="stars-badge">★ ${p.stars}</span>
+            </div>
+            <p class="card-desc">${p.description}</p>
+            <div class="card-meta">
+              <span class="meta-tag">🏷️ ${p.category}</span>
+              <span class="meta-tag">💻 ${p.language}</span>
+              <span class="meta-tag">📜 ${p.license}</span>
+            </div>
+            <ul class="features-list">
+              ${p.key_features.map(f => `<li>${f}</li>`).join('')}
+            </ul>
+          </div>
+          <div class="btn-group">
+            <a href="${p.github_url}" target="_blank" class="btn btn-primary">GitHub Repository</a>
+            <a href="${p.github_url}#readme" target="_blank" class="btn btn-outline">Documentation</a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderPhoneGrid(projects) {
+      const grid = document.getElementById('phone-osint-grid');
+      if (projects.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; color: var(--text-muted); text-align: center; padding: 24px;">No phone OSINT projects matched your filter.</div>`;
+        return;
+      }
+      grid.innerHTML = projects.map(p => `
+        <div class="card">
+          <div>
+            <div class="card-top">
+              <span class="card-title">${p.name}</span>
+              <span class="stars-badge">★ ${p.stars}</span>
+            </div>
+            <p class="card-desc">${p.description}</p>
+            <div class="card-meta">
+              <span class="meta-tag">📱 ${p.category}</span>
+              <span class="meta-tag">💻 ${p.language}</span>
+              <span class="meta-tag">📜 ${p.license}</span>
+            </div>
+            <ul class="features-list">
+              ${p.key_features.map(f => `<li>${f}</li>`).join('')}
+            </ul>
+          </div>
+          <div class="btn-group">
+            <a href="${p.github_url}" target="_blank" class="btn btn-primary">GitHub Repository</a>
+            <a href="${p.github_url}#readme" target="_blank" class="btn btn-outline">Documentation</a>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function filterWebOsint(query) {
+      const q = (query || '').toLowerCase().trim();
+      if (!q) {
+        renderWebGrid(allWebProjects);
+        return;
+      }
+      const filtered = allWebProjects.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q) ||
+        p.language.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q)
+      );
+      renderWebGrid(filtered);
+    }
+
+    function filterPhoneOsint(query) {
+      const q = (query || '').toLowerCase().trim();
+      if (!q) {
+        renderPhoneGrid(allPhoneProjects);
+        return;
+      }
+      const filtered = allPhoneProjects.filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q) ||
+        p.language.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q)
+      );
+      renderPhoneGrid(filtered);
+    }
+
+    function setPhoneSample(num) {
+      document.getElementById('phone-input').value = num;
+      runPhoneAnalysis();
+    }
+
     async function loadWebOsint() {
       try {
         const res = await fetch('/api/osint/web');
         const data = await res.json();
-        const grid = document.getElementById('web-osint-grid');
-        grid.innerHTML = data.projects.map(p => `
-          <div class="card">
-            <div>
-              <div class="card-top">
-                <span class="card-title">${p.name}</span>
-                <span class="stars-badge">★ ${p.stars}</span>
-              </div>
-              <p class="card-desc">${p.description}</p>
-              <div class="card-meta">
-                <span class="meta-tag">🏷️ ${p.category}</span>
-                <span class="meta-tag">💻 ${p.language}</span>
-                <span class="meta-tag">📜 ${p.license}</span>
-              </div>
-              <ul class="features-list">
-                ${p.key_features.map(f => `<li>${f}</li>`).join('')}
-              </ul>
-            </div>
-            <div class="btn-group">
-              <a href="${p.github_url}" target="_blank" class="btn btn-primary">GitHub Repository</a>
-              <a href="${p.github_url}#readme" target="_blank" class="btn btn-outline">Documentation</a>
-            </div>
-          </div>
-        `).join('');
+        allWebProjects = data.projects || [];
+        renderWebGrid(allWebProjects);
       } catch (err) {
         console.error('Failed to load web OSINT', err);
       }
@@ -407,30 +500,8 @@
       try {
         const res = await fetch('/api/osint/phone');
         const data = await res.json();
-        const grid = document.getElementById('phone-osint-grid');
-        grid.innerHTML = data.projects.map(p => `
-          <div class="card">
-            <div>
-              <div class="card-top">
-                <span class="card-title">${p.name}</span>
-                <span class="stars-badge">★ ${p.stars}</span>
-              </div>
-              <p class="card-desc">${p.description}</p>
-              <div class="card-meta">
-                <span class="meta-tag">📱 ${p.category}</span>
-                <span class="meta-tag">💻 ${p.language}</span>
-                <span class="meta-tag">📜 ${p.license}</span>
-              </div>
-              <ul class="features-list">
-                ${p.key_features.map(f => `<li>${f}</li>`).join('')}
-              </ul>
-            </div>
-            <div class="btn-group">
-              <a href="${p.github_url}" target="_blank" class="btn btn-primary">GitHub Repository</a>
-              <a href="${p.github_url}#readme" target="_blank" class="btn btn-outline">Documentation</a>
-            </div>
-          </div>
-        `).join('');
+        allPhoneProjects = data.projects || [];
+        renderPhoneGrid(allPhoneProjects);
       } catch (err) {
         console.error('Failed to load phone OSINT', err);
       }

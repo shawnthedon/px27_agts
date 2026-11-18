@@ -5,6 +5,7 @@
   "description": "px27m Platform Gateway - Universal Phone Control Registry, Router and Policy Engine",
   "main": "src/index.js",
   "scripts": {
+    "pretest": "node ../../scripts/setup-links.js",
     "test": "node --test test/*.test.js"
   },
   "dependencies": {

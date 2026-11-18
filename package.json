@@ -2,11 +2,14 @@
   "name": "px27_agts",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "workspaces": [
     "packages/*",
     "apps/*"
   ],
   "scripts": {
+    "prepare": "node scripts/setup-links.js",
+    "pretest": "node scripts/setup-links.js",
     "test": "npm test --workspaces"
   }
 }
