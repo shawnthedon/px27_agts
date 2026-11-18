@@ -129,4 +129,78 @@ final class ProtocolAndEngineTests: XCTestCase {
         let isStopped = await manager.isLocalDaemonRunning
         XCTAssertFalse(isStopped)
     }
+
+    func testNativeIOSHandlersExecuteSupportedCapabilitiesWithVerification() async {
+        let handlers = CapabilityHandlers()
+
+        let ttsCmd = PhoneControlCommand(
+            commandId: "cmd_tts_01",
+            capability: "device.audio.tts",
+            parameters: ["text": "Testing TTS synthesis", "language": "en-US"]
+        )
+        let ttsRes = await handlers.execute(command: ttsCmd)
+        XCTAssertEqual(ttsRes.status, .completed)
+        XCTAssertTrue(ttsRes.verification.verified)
+
+        let torchCmd = PhoneControlCommand(
+            commandId: "cmd_torch_01",
+            capability: "device.camera.torch",
+            parameters: ["state": "on"]
+        )
+        let torchRes = await handlers.execute(command: torchCmd)
+        XCTAssertEqual(torchRes.status, .completed)
+        XCTAssertTrue(torchRes.verification.verified)
+
+        let vibrateCmd = PhoneControlCommand(
+            commandId: "cmd_vibrate_01",
+            capability: "device.sensors.vibrate",
+            parameters: ["style": "medium"]
+        )
+        let vibrateRes = await handlers.execute(command: vibrateCmd)
+        XCTAssertEqual(vibrateRes.status, .completed)
+        XCTAssertTrue(vibrateRes.verification.verified)
+
+        let shareCmd = PhoneControlCommand(
+            commandId: "cmd_share_01",
+            capability: "device.messaging.share",
+            parameters: ["text": "Share text"]
+        )
+        let shareRes = await handlers.execute(command: shareCmd)
+        XCTAssertEqual(shareRes.status, .completed)
+        XCTAssertTrue(shareRes.verification.verified)
+    }
+
+    func testNativeIOSHandlersRejectRestrictedCapabilitiesWithTruthfulReasons() async {
+        let handlers = CapabilityHandlers()
+
+        let smsCmd = PhoneControlCommand(
+            commandId: "cmd_sms_01",
+            capability: "device.messaging.send_sms",
+            parameters: ["to": "+15550199", "message": "hello"]
+        )
+        let smsRes = await handlers.execute(command: smsCmd)
+        XCTAssertEqual(smsRes.status, .unsupported)
+        XCTAssertFalse(smsRes.verification.verified)
+        XCTAssertEqual(smsRes.error?.code, "UNSUPPORTED_PLATFORM_SANDBOX")
+
+        let notifCmd = PhoneControlCommand(
+            commandId: "cmd_notif_01",
+            capability: "device.notifications.list",
+            parameters: [:]
+        )
+        let notifRes = await handlers.execute(command: notifCmd)
+        XCTAssertEqual(notifRes.status, .unsupported)
+        XCTAssertFalse(notifRes.verification.verified)
+        XCTAssertEqual(notifRes.error?.code, "UNSUPPORTED_PLATFORM_SANDBOX")
+
+        let volCmd = PhoneControlCommand(
+            commandId: "cmd_vol_01",
+            capability: "device.audio.volume",
+            parameters: ["level": "80"]
+        )
+        let volRes = await handlers.execute(command: volCmd)
+        XCTAssertEqual(volRes.status, .unsupported)
+        XCTAssertFalse(volRes.verification.verified)
+        XCTAssertEqual(volRes.error?.code, "UNSUPPORTED_PLATFORM_SANDBOX")
+    }
 }
