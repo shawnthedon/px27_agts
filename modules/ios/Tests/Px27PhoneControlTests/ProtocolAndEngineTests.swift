@@ -88,4 +88,19 @@ final class ProtocolAndEngineTests: XCTestCase {
         XCTAssertTrue(result.verification.verified)
         XCTAssertNotNil(result.result?["processor_count"])
     }
+
+    func testPx27mAgentClientDiscoversAndExecutesCapabilities() async {
+        let client = Px27mAgentClient(
+            agentId: "test_agent_ios",
+            autonomyProfile: .operatorProfile
+        )
+
+        let caps = await client.discoverAvailableCapabilities()
+        XCTAssertFalse(caps.isEmpty)
+        XCTAssertTrue(caps.allSatisfy { $0.available })
+
+        let result = await client.executeCapability(capabilityId: "device.info.system")
+        XCTAssertEqual(result.status, .completed)
+        XCTAssertTrue(result.verification.verified)
+    }
 }

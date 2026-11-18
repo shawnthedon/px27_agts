@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleIdentifier</key>
+    <string>com.px27m.phonecontrol</string>
+    <key>CFBundleName</key>
+    <string>px27m Phone Control</string>
+    <key>CFBundleDisplayName</key>
+    <string>px27m Control</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>arm64</string>
+    </array>
+    <key>NSCameraUsageDescription</key>
+    <string>px27m Phone Control requires camera access for QR code and barcode scanning by authorized agents.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>px27m Phone Control requires microphone access for audio recording and speech transcription by authorized agents.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>px27m Phone Control requires location access to provide device telemetry and navigation services to authorized agents.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+        <string>processing</string>
+    </array>
+</dict>
+</plist>

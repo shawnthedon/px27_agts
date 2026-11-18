@@ -7,6 +7,13 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
 import android.os.StatFs
+import com.pocketstrike.app.core.protocol.AutonomyProfile
+import com.pocketstrike.app.core.protocol.CommandAuthorization
+import com.pocketstrike.app.core.protocol.ExecutionResult
+import com.pocketstrike.app.core.protocol.PhoneControlCommand
+import com.pocketstrike.app.discovery.CapabilityDiscoveryEngine
+import com.pocketstrike.app.engine.ExecutionEngine
+import com.pocketstrike.app.connectivity.HybridConnectivityManager
 import com.pocketstrike.app.model.AIProviderConfig
 import com.pocketstrike.app.model.AgentStep
 import com.pocketstrike.app.model.ChatMessage
@@ -21,9 +28,14 @@ import com.pocketstrike.app.model.ToolCallInfo
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import org.json.JSONObject
 import java.util.UUID
 
 class PocketStrikeRepository(private val context: Context) {
+
+    val executionEngine = ExecutionEngine(context)
+    val discoveryEngine = CapabilityDiscoveryEngine(context)
+    val hybridConnectivity = HybridConnectivityManager(context, executionEngine)
 
     private val _conversations = mutableListOf<Conversation>()
     private val _messages = mutableMapOf<String, MutableList<ChatMessage>>()
@@ -36,6 +48,7 @@ class PocketStrikeRepository(private val context: Context) {
 
     init {
         seedInitialData()
+        hybridConnectivity.startLocalServer()
     }
 
     private fun seedInitialData() {
@@ -293,7 +306,31 @@ class PocketStrikeRepository(private val context: Context) {
     }
 
     // Tools Execution
-    fun executeLocalTool(toolName: String, argsJson: String): String {
+    suspend fun executeUniversalCapability(capabilityId: String, argsJson: String): ExecutionResult {
+        val params = try {
+            JSONObject(argsJson)
+        } catch (e: Exception) {
+            JSONObject()
+        }
+        val command = PhoneControlCommand(
+            commandId = "agent_call_${System.currentTimeMillis()}",
+            capability = capabilityId,
+            parameters = params,
+            authorization = CommandAuthorization(
+                agentId = "on_device_agent",
+                autonomyProfile = AutonomyProfile.POWER_USER,
+                approvalToken = "on_device_user_token"
+            )
+        )
+        return executionEngine.executeCommand(command)
+    }
+
+    suspend fun executeLocalTool(toolName: String, argsJson: String): String {
+        if (toolName.startsWith("device.")) {
+            val res = executeUniversalCapability(toolName, argsJson)
+            val info = if (res.verification.verified) "Verified via ${res.verification.verificationMethod}" else "Unverified: ${res.verification.reason}"
+            return "[${res.status.key.uppercase()}] $info • ${res.result?.toString() ?: res.error?.message ?: "Success"}"
+        }
         return when (toolName) {
             "get_battery_status" -> {
                 val ifilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
@@ -360,17 +397,31 @@ class PocketStrikeRepository(private val context: Context) {
         val lower = prompt.lowercase()
         val toolsToRun = mutableListOf<Pair<String, String>>()
 
+        // Dynamically plan universal capabilities via ExecutionEngine
+        val plannedUniversal = executionEngine.planSteps(prompt)
+        for (stepCap in plannedUniversal) {
+            toolsToRun.add(stepCap to "{}")
+        }
+
         if (lower.contains("battery") || lower.contains("charge") || lower.contains("power")) {
-            toolsToRun.add("get_battery_status" to "{}")
+            if (!toolsToRun.any { it.first == "device.info.battery" }) {
+                toolsToRun.add("device.info.battery" to "{}")
+            }
         }
         if (lower.contains("device") || lower.contains("system") || lower.contains("phone") || lower.contains("specs")) {
-            toolsToRun.add("get_device_info" to "{}")
+            if (!toolsToRun.any { it.first == "device.info.system" }) {
+                toolsToRun.add("device.info.system" to "{}")
+            }
         }
         if (lower.contains("storage") || lower.contains("space") || lower.contains("disk")) {
-            toolsToRun.add("get_storage_info" to "{}")
+            if (!toolsToRun.any { it.first == "device.info.storage" }) {
+                toolsToRun.add("device.info.storage" to "{}")
+            }
         }
         if (lower.contains("network") || lower.contains("wifi") || lower.contains("connection")) {
-            toolsToRun.add("get_network_status" to "{}")
+            if (!toolsToRun.any { it.first == "device.connectivity.status" }) {
+                toolsToRun.add("device.connectivity.status" to "{}")
+            }
         }
         if (lower.contains("remember") || lower.contains("save fact") || lower.contains("preference")) {
             toolsToRun.add("hermes_save_memory" to "{\"fact\": \"$prompt\"}")
