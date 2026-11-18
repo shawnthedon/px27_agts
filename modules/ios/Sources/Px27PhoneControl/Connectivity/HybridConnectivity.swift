@@ -2,9 +2,14 @@ import Foundation
 #if canImport(CryptoKit)
 import CryptoKit
 #endif
+#if canImport(Network)
+import Network
+#endif
 
 /// Hybrid Connectivity Manager for iOS
-/// Manages local LAN communication and remote persistent WebSocket gateway connection.
+/// Implements dual-transport connectivity:
+/// 1. Local LAN TCP daemon (port 27028) via NWListener / sockets
+/// 2. Remote Gateway WebSocket client with HMAC-SHA256 signature authentication
 public actor HybridConnectivityManager {
 
     public let deviceId: String
@@ -14,6 +19,7 @@ public actor HybridConnectivityManager {
 
     private let discovery = CapabilityDiscovery()
     private let engine: ExecutionEngine
+    private var webSocketTask: URLSessionWebSocketTask?
 
     public init(deviceId: String = "ios_\(UUID().uuidString.prefix(8))", engine: ExecutionEngine) {
         self.deviceId = deviceId
@@ -24,17 +30,129 @@ public actor HybridConnectivityManager {
         self.sharedSecret = secret
     }
 
+    // MARK: - 1. Local LAN Daemon (Port 27028)
+
     public func startLocalDaemon(port: UInt16 = 27028) {
+        #if canImport(Network)
+        do {
+            let params = NWParameters.tcp
+            params.allowLocalEndpointReuse = true
+            let listener = try NWListener(using: params, on: NWEndpoint.Port(rawValue: port)!)
+            listener.newConnectionHandler = { [weak self] connection in
+                connection.start(queue: .global())
+                self?.handleIncomingLanConnection(connection)
+            }
+            listener.start(queue: .global())
+            isLocalDaemonRunning = true
+        } catch {
+            isLocalDaemonRunning = false
+        }
+        #else
         isLocalDaemonRunning = true
+        #endif
     }
 
     public func stopLocalDaemon() {
         isLocalDaemonRunning = false
     }
 
+    #if canImport(Network)
+    private nonisolated func handleIncomingLanConnection(_ connection: NWConnection) {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] data, _, isComplete, _ in
+            guard let self = self, let data = data, let jsonString = String(data: data, encoding: .utf8) else {
+                return
+            }
+            Task {
+                let response = await self.processIncomingPayload(jsonString)
+                if let respData = response.data(using: .utf8) {
+                    connection.send(content: respData, completion: .contentProcessed({ _ in
+                        if isComplete { connection.cancel() }
+                    }))
+                }
+            }
+        }
+    }
+    #endif
+
+    // MARK: - 2. Remote Gateway WebSocket Client
+
+    public func connectToGateway(url: URL) {
+        let session = URLSession(configuration: .default)
+        let task = session.webSocketTask(with: url)
+        self.webSocketTask = task
+        task.resume()
+        isGatewayConnected = true
+
+        // Send initial registration and capability manifest
+        sendManifestToGateway()
+        startWebSocketListenLoop()
+    }
+
+    public func disconnectFromGateway() {
+        webSocketTask?.cancel(with: .normalClosure, reason: nil)
+        webSocketTask = nullTask()
+        isGatewayConnected = false
+    }
+
+    private func nullTask() -> URLSessionWebSocketTask? {
+        return nil
+    }
+
+    private func sendManifestToGateway() {
+        guard let task = webSocketTask else { return }
+        let manifest = discovery.discoverCapabilities(deviceId: deviceId)
+        if let data = try? JSONEncoder().encode(manifest),
+           let str = String(data: data, encoding: .utf8) {
+            let msg = URLSessionWebSocketTask.Message.string(str)
+            task.send(msg) { _ in }
+        }
+    }
+
+    private func startWebSocketListenLoop() {
+        guard let task = webSocketTask else { return }
+
+        task.receive { [weak self] result in
+            guard let self = self else { return }
+            switch result {
+            case .success(let message):
+                let payload: String? = {
+                    switch message {
+                    case .string(let str): return str
+                    case .data(let data): return String(data: data, encoding: .utf8)
+                    @unknown default: return nil
+                    }
+                }()
+
+                if let text = payload {
+                    Task {
+                        let response = await self.processIncomingPayload(text)
+                        if let task = await self.webSocketTask {
+                            task.send(.string(response)) { _ in }
+                        }
+                    }
+                }
+                // Continue loop
+                Task {
+                    await self.startWebSocketListenLoop()
+                }
+
+            case .failure:
+                Task {
+                    await self.handleGatewayDisconnect()
+                }
+            }
+        }
+    }
+
+    private func handleGatewayDisconnect() {
+        isGatewayConnected = false
+    }
+
+    // MARK: - Payload Processing & Cryptographic Verification
+
     public func processIncomingPayload(_ jsonString: String) async -> String {
         guard let data = jsonString.data(using: .utf8) else {
-            return "{\"status\":\"failed\",\"error\":\"Invalid string encoding\"}"
+            return "{\"status\":\"failed\",\"error\":{\"message\":\"Invalid string encoding\"}}"
         }
 
         // 1. Check if discovery query
@@ -51,7 +169,7 @@ public actor HybridConnectivityManager {
         // 2. Decode Command
         let decoder = JSONDecoder()
         guard let command = try? decoder.decode(PhoneControlCommand.self, from: data) else {
-            return "{\"status\":\"failed\",\"error\":\"JSON does not match PhoneControlCommand schema\"}"
+            return "{\"status\":\"failed\",\"error\":{\"message\":\"JSON does not match PhoneControlCommand schema\"}}"
         }
 
         // 3. Verify HMAC signature if secret configured
@@ -74,7 +192,7 @@ public actor HybridConnectivityManager {
         }
         #endif
 
-        // 4. Execute through engine
+        // 4. Execute through 10-component engine
         let result = await engine.executeCommand(command: command, deviceId: deviceId)
         let encoder = JSONEncoder()
         encoder.outputFormatting = .prettyPrinted

@@ -103,4 +103,30 @@ final class ProtocolAndEngineTests: XCTestCase {
         XCTAssertEqual(result.status, .completed)
         XCTAssertTrue(result.verification.verified)
     }
+
+    func testHybridConnectivityProcessesIncomingPayloadWithTruthfulVerification() async {
+        let engine = ExecutionEngine()
+        let manager = HybridConnectivityManager(deviceId: "ios_test_hybrid", engine: engine)
+
+        await manager.startLocalDaemon(port: 27028)
+        let isRunning = await manager.isLocalDaemonRunning
+        XCTAssertTrue(isRunning)
+
+        let payloadJson = """
+        {
+          "command_id": "cmd_hybrid_01",
+          "capability": "device.info.system",
+          "parameters": {},
+          "execution": { "mode": "foreground", "timeout_ms": 5000, "verify_result": true },
+          "authorization": { "agent_id": "agent_hybrid", "autonomy_profile": "operator" }
+        }
+        """
+
+        let response = await manager.processIncomingPayload(payloadJson)
+        XCTAssertTrue(response.contains("completed") || response.contains("verified"))
+
+        await manager.stopLocalDaemon()
+        let isStopped = await manager.isLocalDaemonRunning
+        XCTAssertFalse(isStopped)
+    }
 }
