@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://px27m.ai/schemas/phone-control/command.schema.json",
+  "title": "PhoneControlCommand",
+  "description": "Universal command schema for operating device capabilities from px27m agents",
+  "type": "object",
+  "required": [
+    "command_id",
+    "capability",
+    "parameters",
+    "execution",
+    "authorization"
+  ],
+  "properties": {
+    "command_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capability": {
+      "type": "string",
+      "pattern": "^device\\.[a-z0-9_]+\\.[a-z0-9_]+$"
+    },
+    "parameters": {
+      "type": "object"
+    },
+    "execution": {
+      "type": "object",
+      "required": ["mode", "timeout_ms", "verify_result"],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["foreground", "background", "best_effort"]
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 500,
+          "maximum": 300000
+        },
+        "verify_result": {
+          "type": "boolean"
+        },
+        "retry_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        }
+      }
+    },
+    "authorization": {
+      "type": "object",
+      "required": ["agent_id", "autonomy_profile"],
+      "properties": {
+        "agent_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "agent_name": {
+          "type": "string"
+        },
+        "autonomy_profile": {
+          "type": "string",
+          "enum": ["observer", "assistant", "operator", "power_user", "restricted"]
+        },
+        "approval_token": {
+          "type": "string"
+        },
+        "signature": {
+          "type": "string"
+        },
+        "timestamp_ms": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

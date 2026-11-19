@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://px27m.ai/schemas/phone-control/result.schema.json",
+  "title": "ExecutionResult",
+  "description": "Truthful execution result schema with state verification and error handling",
+  "type": "object",
+  "required": [
+    "command_id",
+    "status",
+    "platform",
+    "capability",
+    "verification",
+    "duration_ms"
+  ],
+  "properties": {
+    "command_id": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "accepted",
+        "queued",
+        "awaiting_approval",
+        "running",
+        "completed",
+        "partially_completed",
+        "failed",
+        "cancelled",
+        "timed_out",
+        "unsupported",
+        "permission_required"
+      ]
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["android", "ios"]
+    },
+    "capability": {
+      "type": "string"
+    },
+    "result": {
+      "type": ["object", "null"]
+    },
+    "verification": {
+      "type": "object",
+      "required": ["verified"],
+      "properties": {
+        "verified": {
+          "type": "boolean"
+        },
+        "verification_method": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "error": {
+      "type": ["object", "null"],
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "recoverable": {
+          "type": "boolean"
+        },
+        "details": {
+          "type": "object"
+        }
+      }
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "timestamp_ms": {
+      "type": "integer"
+    }
+  }
+}
