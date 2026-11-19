@@ -8,6 +8,7 @@
     "apps/*"
   ],
   "scripts": {
+    "build": "node scripts/build-static.js",
     "start": "npm start --workspace=@px27m/gateway",
     "prepare": "node scripts/setup-links.js",
     "pretest": "node scripts/setup-links.js",
