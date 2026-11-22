@@ -1,0 +1,151 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://px27m.ai/schemas/phone-control/capability.schema.json",
+  "title": "CapabilityManifest",
+  "description": "Schema for dynamic phone capability discovery and registration in px27m platform",
+  "type": "object",
+  "required": [
+    "module",
+    "platform",
+    "module_version",
+    "protocol_version",
+    "device_id",
+    "capabilities"
+  ],
+  "properties": {
+    "module": {
+      "type": "string",
+      "const": "px27m.phone-control"
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["android", "ios"]
+    },
+    "module_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+"
+    },
+    "protocol_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+"
+    },
+    "device_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "device_name": {
+      "type": "string"
+    },
+    "os_version": {
+      "type": "string"
+    },
+    "connection_mode": {
+      "type": "string",
+      "enum": ["local", "remote_gateway", "hybrid"]
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/CapabilityDefinition"
+      }
+    }
+  },
+  "definitions": {
+    "CapabilityDefinition": {
+      "type": "object",
+      "required": [
+        "id",
+        "category",
+        "name",
+        "description",
+        "supported_platforms",
+        "available",
+        "permission_status",
+        "risk_level"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^device\\.[a-z0-9_]+\\.[a-z0-9_]+$"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "screen",
+            "application",
+            "device_info",
+            "connectivity",
+            "telephony",
+            "messaging",
+            "audio",
+            "camera",
+            "storage",
+            "notifications",
+            "location",
+            "sensors",
+            "settings",
+            "automation",
+            "security"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "supported_platforms": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["android", "ios"]
+          }
+        },
+        "available": {
+          "type": "boolean"
+        },
+        "unavailability_reason": {
+          "type": "string",
+          "enum": [
+            "unsupported_platform_sandbox",
+            "missing_hardware",
+            "missing_permission",
+            "service_disabled",
+            "policy_blocked",
+            "device_locked"
+          ]
+        },
+        "permission_status": {
+          "type": "string",
+          "enum": [
+            "not_required",
+            "granted",
+            "not_granted",
+            "permanently_denied",
+            "restricted_by_os"
+          ]
+        },
+        "required_permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "risk_level": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "supports_background": {
+          "type": "boolean"
+        },
+        "parameters_schema": {
+          "type": "object"
+        },
+        "returns_schema": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

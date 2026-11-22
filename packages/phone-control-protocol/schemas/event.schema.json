@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://px27m.ai/schemas/phone-control/event.schema.json",
+  "title": "DeviceEvent",
+  "description": "Asynchronous device telemetry, state transition, and notification event schema",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "device_id",
+    "platform",
+    "timestamp_ms",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string"
+    },
+    "event_type": {
+      "type": "string"
+    },
+    "device_id": {
+      "type": "string"
+    },
+    "platform": {
+      "type": "string",
+      "enum": ["android", "ios"]
+    },
+    "timestamp_ms": {
+      "type": "integer"
+    },
+    "payload": {
+      "type": "object"
+    }
+  }
+}
